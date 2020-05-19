@@ -1,5 +1,6 @@
 ---
-title: "Comentários e cultura"
+title: "FPCC2 - Laboratório 3.2"
+author: "Saulo Samuel Ferreira do Nascimento"
 output:
     html_document:
     df_print: paged
@@ -10,7 +11,7 @@ theme: sandstone
 library(tidyverse)
 library(here)
 library(viridis)
-source(here::here("code/lib.R"))
+source(here::here("code/import_data.R"))
 theme_set(theme_bw())
 
 knitr::opts_chunk$set(tidy = FALSE,
@@ -38,17 +39,134 @@ glimpse(dados)
 
 Estamos interessados na relação entre quanto as pessoas de diferentes países comentam em questões dos outros. A proporção das pessoas do país que comentou nas questões de outros está medido na variável `comentaram_prop`. 
 
-Considerando essa variável, queremos examinar a relação entre ela e o quão hierárquicas são as relações em um país (`PDI`). Queremos também levar em conta o quanto as pessoas daquele país têm acesso à Internet (`Internet`) e qual o tamanho da base de dados que detectamos daquele país (`usuarios`). 
+Considerando essa variável, queremos examinar a relação entre ela e o quão hierárquicas são as relações em um país (`PDI`). Queremos também levar em conta o quanto as pessoas daquele país têm acesso à Internet (`Internet`) e qual o tamanho da base de dados que detectamos daquele país (`usuarios`).
+
+## Preparando os dados
+
+Uma vez que o site não será considerado para a análise, é preciso agregar os dados e recalcular a proporção das pessoas que comentaram.
+
+``` {r echo=TRUE}
+clean_data = dados %>% group_by(site, country, six_regions, PDI, Internet, usuarios) %>%
+    summarise(comentaram_count = prod(comentaram_prop, usuarios))  %>%
+    group_by(country, six_regions, PDI, Internet) %>%
+    summarise(usuarios = sum(usuarios),
+              comentaram_count = sum(comentaram_count),
+              comentaram_prop = round(comentaram_count/usuarios, 3)) %>% ungroup()
+
+glimpse(clean_data)
+```
 
 ## Examinando essa relação
 
 Faça uma visualização que usa os princípios de eficácia no projeto de visualizações para facilitar as comparações que você acha que são as mais importantes para entendermos esse contexto. 
 
+``` {r echo=TRUE, fig.height = 12, fig.width = 10}
+clean_data %>% ggplot(aes(x=reorder(country, comentaram_prop), y =PDI, color = country)) +
+    geom_jitter(width = .1, alpha = .6, aes(size=usuarios)) +
+    scale_size_continuous(range = c(1, 10), breaks = seq(10000, 160000, 30000)) + 
+    geom_point(data = clean_data, aes(y=Internet), na.rm = TRUE, shape = 8, size = 2, alpha = .25) +
+    labs(x = "Pais, ordenados pela Proporção de Pessoas que Comentaram", y="PDI/Internet", color = "Pais", size = "Quantidade de usuários",
+         subtitle = "Os circulos referem ao PDI, os * à Internet") + 
+    coord_flip() +
+    theme(legend.position = "bottom", legend.box = "vertical")
+```
+
+Podemos oservar que os países com os menores PDI são também os com maiore Proporção de Pessoas que comentaram, havendo um espanhamento maior do valor de PDI para países com as menores proporções, uma possível interpretasão para isso é: Pessoas que vivem em países com alto PDI, ou seja, as relações de poder não precisam de justificativas, não se sentem no direito de opinar, enquanto quem vive em paises com baixo PDI se sentem instigadas a debater as soluções. No caso da variável Internet, vemos que quanto maior o seu valor, menor tente a ser o PDI, isso é um indicativo de que o acesso a internet diminui a aceitação de ordens hierarquicas que não precisam de justificativas, talvez porque o maior acesso a informação por parte da população os leva a questionar a hierarquia. A quantidade de usuários não parece estar diretamente ligada a nenhuma das variáveis, Os Estados Unidos tem uma grande quantidade de usuários, mas um baixo PDI, uma alta proporção e alto acesso a Internet, já a India, que também tem uma grande quantidade de usuários, é o oposto, com baixo valor para internet e proporção e alto para PDI.
+
 ## Outras formas de ver
 
 Em seguida, faça 5 visualizações que usem as mesmas variáveis e também pontos, mas que sejam **menos eficazes** que a que você escolheu acima. 
+
+``` {r echo=TRUE, fig.height = 13, fig.width = 10}
+clean_data %>% ggplot(aes(x=reorder(country, comentaram_prop), y =PDI, color = country)) +
+    geom_jitter(width = .1, alpha = .6, aes(size=usuarios)) +
+    scale_size_continuous(range = c(1, 10), breaks = seq(10000, 160000, 30000)) + 
+    geom_point(data = clean_data, aes(y=Internet), na.rm = TRUE, shape = 8, size = 2, alpha = .25) +
+    labs(x = "Pais, ordenados pela Proporção de Pessoas que Comentaram", y="PDI/Internet", color = "Pais", size = "Quantidade de usuários",
+         subtitle = "Os circulos referem ao PDI, os * à Internet") +
+    theme(legend.position = "bottom", legend.box = "vertical")
+```
+
+Aqui, o nome dos países no eixo X se sobrepoem pela falta de espaço, e mesmo que haja uma diferença nas coresm o grande número de países causou um numero grande de cores similares, o que impede que uma pessoa possa identificar os países, como por exemplo, Uruguai e Venezuela.
+
+``` {r echo=TRUE, fig.height = 12, fig.width = 10}
+clean_data %>% ggplot(aes(x=reorder(country, comentaram_prop), y =PDI)) +
+    geom_jitter(width = .1, aes(size=usuarios)) +
+    scale_size_continuous(range = c(1, 10), breaks = seq(10000, 160000, 30000)) + 
+    geom_point(data = clean_data, aes(y=Internet), na.rm = TRUE, size = 2, alpha = .25) +
+    labs(x = "Pais, ordenados pela Proporção de Pessoas que Comentaram", y="PDI/Internet", color = "Pais", size = "Quantidade de usuários") + 
+    coord_flip() +
+    theme(legend.position = "bottom", legend.box = "vertical")
+```
+
+Dessa vez, todos os pontos estão em preto, com os pontos para Internet com transparência. Além de alguma sobreposição entre alguns pontos de PDI, fica mais dífícil saber a que país se refere um ponto que está na região mais a direita do gráfico, longe das marcações dos países.
+
+``` {r echo=TRUE, fig.height = 13, fig.width = 10}
+clean_data %>% ggplot(aes(x=reorder(country, comentaram_prop), y = PDI, color = country)) +
+    geom_jitter(width = .1, alpha = .75, aes(size=usuarios)) +
+    scale_size_continuous(range = c(1, 10), breaks = seq(10000, 160000, 30000)) + 
+    geom_point(data = clean_data, aes(y=Internet), na.rm = TRUE, shape = 15) +
+    labs(x = "Pais, ordenados pela Proporção de Pessoas que Comentaram", y="PDI/Internet", color = "Pais", size = "Quantidade de usuários",
+         subtitle = "Os circulos referem ao PDI, os quadrados à Internet") + 
+    coord_flip() +
+    theme(legend.position = "bottom", legend.box = "vertical")
+```
+
+Neste gráfico, fica difícil diferencias os quadrados (que se referem à internet) e os circulos (PDI) menores.
+
+``` {r echo=TRUE, fig.height = 13, fig.width = 10}
+clean_data %>% ggplot(aes(x=reorder(country, comentaram_prop), y =PDI, color = country)) +
+    geom_jitter(width = .1, alpha = .6, aes(size=usuarios)) +
+    scale_size_continuous(range = c(1, 20), breaks = seq(10000, 160000, 50000)) + 
+    geom_point(data = clean_data, aes(y=Internet), na.rm = TRUE, shape = 8, size = 2, alpha = .25) +
+    labs(x = "Pais, ordenados pela Proporção de Pessoas que Comentaram", y="PDI/Internet", color = "Pais", size = "Quantidade de usuários",
+         subtitle = "Os circulos referem ao PDI, os * à Internet") + 
+    coord_flip() +
+    theme(legend.position = "bottom", legend.box = "vertical")
+```
+
+Aqui, os circulos muito grandes atrapalham a vizualização, levando a confundir o país, ou circulos se sobrepondo.
+
+``` {r echo=TRUE, fig.height = 13, fig.width = 10}
+clean_data %>% ggplot(aes(x=reorder(country, comentaram_prop), y =PDI, color = country)) +
+    geom_jitter(width = .1, aes(size=usuarios, alpha = comentaram_prop)) +
+    scale_size_continuous(range = c(1, 10), breaks = seq(10000, 160000, 30000)) + 
+    geom_point(data = clean_data, aes(y=Internet), na.rm = TRUE, shape = 8, size = 2, alpha = .25) +
+    labs(x = "Pais, ordenados pela Proporção de Pessoas que Comentaram", y="PDI/Internet", color = "Pais", size = "Quantidade de usuários", alpha="Proporção",
+         subtitle = "Os circulos referem ao PDI, os * à Internet") + 
+    coord_flip() +
+    theme(legend.position = "bottom", legend.box = "vertical")
+```
+
+Nesta visualização, a transparência dos circulos aumenta para memores valores da proporção, o que leva a confundir os circulos menores com os "*" de Internet.
 
 ## Bônus
 
 Inclua o continente dos países (`six_regions`) na visualização.
 
+``` {r echo=TRUE}
+clean_data$six_regions[clean_data$six_regions == "america"]<- "America"
+clean_data$six_regions[clean_data$six_regions == "east_asia_pacific"]<- "East Asia Pacific"
+clean_data$six_regions[clean_data$six_regions == "europe_central_asia"]<- "Europe Central Asia"
+clean_data$six_regions[clean_data$six_regions == "south_asia"]<- "South Asia"
+clean_data$six_regions[clean_data$six_regions == "middle_east_north_africa"]<- "Middle East Notrh Africa"
+clean_data$six_regions[clean_data$six_regions == "sub_saharan_africa"]<- "Sub-Saharan Africa"
+clean_data$six_regions[clean_data$country == "Hong Kong"]<- "East Asia Pacific"
+clean_data$six_regions[clean_data$country == "Slovakia"]<- "Europe Central Asia"
+```
+
+Ajuste nos nomes das regiões para melhor exibição e adicionando as regiões dos dois países que estavam sem região indicada (NA).
+
+Com as regiões resolvidas, podemos incluí-las no plot.
+
+``` {r echo=TRUE, fig.height = 13, fig.width = 10}
+clean_data %>% ggplot(aes(x=reorder(country, comentaram_prop), y =PDI, color = country)) +
+    geom_jitter(width = .1, alpha = .6, aes(size=usuarios)) +
+    scale_size_continuous(range = c(1, 10), breaks = seq(10000, 160000, 30000)) + 
+    geom_point(data = clean_data, aes(y=Internet), na.rm = TRUE, shape = 8, size = 2, alpha = .25) +
+    labs(x = "Pais, ordenados pela de Proporção Pessoas que Comentaram", y="PDI/Internet", color = "Pais", size = "Quantidade de usuários",
+         subtitle = "Os circulos referem ao PDI, os * à Internet") + 
+    facet_wrap(reorder(six_regions, comentaram_prop) ~ . , scale="free_y", strip.position="top") +
+    coord_flip() +
+    theme(legend.position = "bottom", legend.box = "vertical")
+```
